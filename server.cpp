@@ -88,7 +88,7 @@ int main()
                     perror("accept error");
                     continue;
                 }
-                printf("accept client:%s\n",inet_ntoa(client_addr.sin_addr));
+                printf("accept client:%s:%u\n",inet_ntoa(client_addr.sin_addr), ntohl(client_addr.sin_port));
                 
                 //将client注册到epoll
                 bzero(&event, sizeof(epoll_event));
@@ -128,9 +128,10 @@ int main()
                     perror("time");
                     continue;
                 }
-                printf("now time:%ld\n", t);
-                
-                if (write( events[i].data.fd, &t, sizeof(t)) == -1)
+
+                char *now = asctime(gmtime(&t));
+
+                if (write( events[i].data.fd, now, strlen(now)) == -1)
                 {
                     perror("write error");
                     continue;
@@ -145,9 +146,21 @@ int main()
                     perror("epoll ctl");
                     continue;
                 }
-            }else
+            }else if(events[i].events & EPOLLHUP)
             {
-                printf("未实现的处理事件");
+                //删除
+                bzero(&event, sizeof(epoll_event));
+                event.events = EPOLLHUP;
+                if (epoll_ctl(epfd,EPOLL_CTL_DEL, events[i].data.fd, &event) == -1)
+                {
+                    perror("epoll ctl");
+                    continue;
+                }
+                printf("客户端关闭\n");
+            }
+            else
+            {
+                printf("未实现的处理事件:%d\n",events[i].events);
                 continue;
             }
         }
